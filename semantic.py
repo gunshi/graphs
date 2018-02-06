@@ -110,7 +110,10 @@ def build_graph_synthia():
 #fuse info
 #edge info
 
-def format_seg(blob_list, categ_list):
+
+#blob position remains constant?
+
+def format_seg(blob_list, categ_list, adj_list, frame_num):
 	format_list = [[] for i in range(len(rgb_mapping))]
 
 	for cat in categ_list:
@@ -120,12 +123,23 @@ def format_seg(blob_list, categ_list):
 				index_sem = rgb_mapping.index(sem_value)
 				for j in range(len(blob_list[index])):
 					blob_list[index][j]['fused'] = False
+					blob_list[index][j]['fuseInfo'] = []
+
+
+					##fill this
+					(a,b) = adj_list[index][j] #a is index into adjlist, b is blob position
+					blob_list[index][j]['edgeInfo'] = []
+
+
 				format_list[index_sem] = blob_list[index]
 				
 				break
 	return format_list
 
 def check_with_previous_and_fuse(frame_num, ):
+
+
+#incorp adj list
 
 	#centroids less than some dist
 	#same categ
@@ -243,6 +257,9 @@ def get_edges(sep_denoised, img, blob_list, adj_list):
 						else:
 							center1 = blob_list[i][blob_iter_i]['center']
 							center2 = blob_list[j][blob_iter_j]['center']
+
+							##this is only taking on edge per blob into account acc to me !!!!!!!!!!!!!!!!11
+							
 							adj_list[i][blob_iter_i] = (j,blob_iter_j)
 							adj_list[j][blob_iter_j] = (i,blob_iter_i)
 							#draw edges and centers in image for display
