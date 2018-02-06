@@ -62,6 +62,15 @@ rgb_mapping = static_synthia
 global_graph =  []
 global_nodes = []
 
+blob0 = [] 
+adj0 = [] 
+img0 = [] 
+categ0 = []
+blob1 = [] 
+adj1 = []
+img1 = [] 
+categ1 = []
+
 def config():
 	f=2
 
@@ -72,39 +81,49 @@ def load_data():
 
 def load_synthia():
 	img_path = synthia_memory_folder + '%06d.png' % (0,)
-	blob0, adj0, img0, categ0 = build_image_graph(img_path)
+	blob1, adj1, img1, categ1 = build_image_graph(img_path)
 	empty = [[] for i in range(len(rgb_mapping))]
 	global_graph.append(empty)
 
 	#add to global graph
-	#make the info list -to go into every semantic place of appropraite frame - centroids, bbox, cnt, stringinfo
+	#make the info list -to go into every semantic place of appropriate frame - centroids, bbox, cnt, stringinfo
 	#when fusing, add info for indicating empty/fused distinction?
 
 	add_to_global_graph(0,info_list)
 
 	for i in range(1,n_memory):
+		blob0 = blob1
+		adj0 = adj1
+		img0 = img1
+		categ0 = categ1
+
 		img_path = synthia_memory_folder + '%06d.png' % (i,)
 		blob1, adj1, img1, categ1 = build_image_graph(img_path)
 		global_graph.append(empty)
 		#check with previous and add to grph
 
-		blob0 = blob1
-		adj0 = adj1
-		img0 = img1
-		categ0 = categ1
 
 
 
 #orthogonal case enable (if we add convnet descriptor to each node), and can it be made bow?
 
 
-def format_seg():
+def format_seg(blob_list, categ_list):
+	format_list = [[] for i in range(len(rgb_mapping))]
 
+	for cat in categ_list:
+		index = categ_list.index(cat)
+		for sem_value in rgb_mapping:
+			if cat == sem_value:
+				index_sem = rgb_mapping.index(sem_value)
+				format_list[index_sem] = blob_list[index])
+				break
+	return format_list
 
 def check_with_previous():
 
 
-def add_to_global_graph(index, info_list):
+def add_to_global_graph(index, info_list): #blobs list acc to semantic categs, with blob infos
 	global_graph[index]
 
 def build_seq_graph():
