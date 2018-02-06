@@ -5,16 +5,17 @@ import matplotlib.pyplot as plt
 
 #visualise individually to debug
 #plan how and read sequence of images and their odom
-#fusing and formatting
+#fusing and checking
 #see if fusing acc to centroids is fine
-#make edges accross images acc to odom
 
 
 path='/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/000001.png'
 synthia_memory_folder = ''
 n_memory = 100
+memory_odom_list = []
 synthia_live_folder = ''
-n_live= =10
+n_live = 10
+live_odom_list = []
 
 nets=['enet','GT_synthia']
 datasets=['mapillary','synthia','gta']
@@ -74,12 +75,14 @@ categ1 = []
 def config():
 	f=2
 
-def load_data():
-	filebj = open('sequences.txt','r')
+def load_odom_data(odom_path):
+	#load odom
+	fileobj = open(odom_path,'r')
 	for line in fileobj:
 		words = line.split()
+		memory_odom_list.append(words)
 
-def load_synthia():
+def build_graph_synthia():
 	img_path = synthia_memory_folder + '%06d.png' % (0,)
 	blob1, adj1, img1, categ1 = build_image_graph(img_path)
 	empty = [[] for i in range(len(rgb_mapping))]
@@ -100,13 +103,12 @@ def load_synthia():
 		img_path = synthia_memory_folder + '%06d.png' % (i,)
 		blob1, adj1, img1, categ1 = build_image_graph(img_path)
 		global_graph.append(empty)
-		#check with previous and add to grph
+		#check with previous and add to graph
 
 
-
-
-#orthogonal case enable (if we add convnet descriptor to each node), and can it be made bow?
-
+#fused or not
+#fuse info
+#edge info
 
 def format_seg(blob_list, categ_list):
 	format_list = [[] for i in range(len(rgb_mapping))]
@@ -116,11 +118,21 @@ def format_seg(blob_list, categ_list):
 		for sem_value in rgb_mapping:
 			if cat == sem_value:
 				index_sem = rgb_mapping.index(sem_value)
-				format_list[index_sem] = blob_list[index])
+				for j in range(len(blob_list[index])):
+					blob_list[index][j]['fused'] = False
+				format_list[index_sem] = blob_list[index]
+				
 				break
 	return format_list
 
-def check_with_previous():
+def check_with_previous_and_fuse(frame_num, ):
+
+	#centroids less than some dist
+	#same categ
+	#odom
+
+	##yes when fusing, update info at that place 
+	##therefore add empty blob with fused = true
 
 
 def add_to_global_graph(index, info_list): #blobs list acc to semantic categs, with blob infos
@@ -190,7 +202,7 @@ def get_blobs_and_centroids(sem_imgs,categ_list, blob_list, adj_list):
 				x,y,w,h = cv2.boundingRect(cnt)
     			#roi = img[y:y+h,x:x+w]
     			#add this to a list along with coords to compare with others
-				blob_info = {'roi':[x,y,w,h],'cnt':cnt,'sem_categ':value,'number':counter,'center':(cx,cy)}
+				blob_info = {'roi':[x,y,w,h],'cnt':cnt,'center':(cx,cy)}
 				blob_list[index].append(blob_info)
 				adj_list[index].append([])
 				counter += 1
