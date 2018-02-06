@@ -4,12 +4,9 @@ import os
 import matplotlib.pyplot as plt
 
 #visualise individually to debug
-
 #plan how and read sequence of images and their odom
-#compute blob lists for pairs of adjacent frames
+#fusing and formatting
 #see if fusing acc to centroids is fine
-
-#read paper again, decide doubts to ask shubham
 #make edges accross images acc to odom
 
 
