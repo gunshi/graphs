@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 #visualise individually to debug
-#plan how and read sequence of images and their odom
+#read sequence of images and their odom
 #fusing and checking
 #see if fusing acc to centroids is fine
 
@@ -80,21 +80,24 @@ def load_odom_data(odom_path):
 	fileobj = open(odom_path,'r')
 	for line in fileobj:
 		words = line.split()
-		memory_odom_list.append(words)
+		nums = np.array([float(ele) for ele in words])
+		nums = np.reshape(nums, (4,4), order='F')
+		memory_odom_list.append(nums)
 
 def build_graph_synthia():
 	img_path = synthia_memory_folder + '%06d.png' % (0,)
 	blob1, adj1, img1, categ1 = build_image_graph(img_path)
 	empty = [[] for i in range(len(rgb_mapping))]
 	global_graph.append(empty)
-
 	#add to global graph
+	#format
 	#make the info list -to go into every semantic place of appropriate frame - centroids, bbox, cnt, stringinfo
-	#when fusing, add info for indicating empty/fused distinction?
 
 	add_to_global_graph(0,info_list)
 
 	for i in range(1,n_memory):
+		#decide acc to odom and skip
+
 		blob0 = blob1
 		adj0 = adj1
 		img0 = img1
@@ -105,13 +108,6 @@ def build_graph_synthia():
 		global_graph.append(empty)
 		#check with previous and add to graph
 
-
-#fused or not
-#fuse info
-#edge info
-
-
-#blob position remains constant?
 
 def format_seg(blob_list, categ_list, adj_list, frame_num):
 	format_list = [[] for i in range(len(rgb_mapping))]
@@ -125,10 +121,14 @@ def format_seg(blob_list, categ_list, adj_list, frame_num):
 					blob_list[index][j]['fused'] = False
 					blob_list[index][j]['fuseInfo'] = []
 
-
-					##fill this
-					(a,b) = adj_list[index][j] #a is index into adjlist, b is blob position
-					blob_list[index][j]['edgeInfo'] = []
+					edge_list = adj_list[index][j] 
+					edge_list_formatted = []
+					#[0] is index into adjlist, [1] is blob position
+					for edge_ele in edge_list:
+						index_to_convert edge_ele[0]
+						index_converted = rgb_mapping.index(categ_list[index_to_convert])
+						edge_list_formatted.append((frame_num,index_converted,edge_ele[1]))
+					blob_list[index][j]['edgeInfo'] = edge_list_formatted
 
 
 				format_list[index_sem] = blob_list[index]
@@ -138,19 +138,15 @@ def format_seg(blob_list, categ_list, adj_list, frame_num):
 
 def check_with_previous_and_fuse(frame_num, ):
 
-
-#incorp adj list
-
 	#centroids less than some dist
 	#same categ
 	#odom
 
 	##yes when fusing, update info at that place 
-	##therefore add empty blob with fused = true
 
-
-def add_to_global_graph(index, info_list): #blobs list acc to semantic categs, with blob infos
-	global_graph[index]
+def add_to_global_graph(index, blob_list): #blobs list acc to semantic categs, with blob infos
+	#global_graph[index]
+	#maybe not needed?
 
 def build_seq_graph():
 	f=2
@@ -258,10 +254,8 @@ def get_edges(sep_denoised, img, blob_list, adj_list):
 							center1 = blob_list[i][blob_iter_i]['center']
 							center2 = blob_list[j][blob_iter_j]['center']
 
-							##this is only taking on edge per blob into account acc to me !!!!!!!!!!!!!!!!11
-							
-							adj_list[i][blob_iter_i] = (j,blob_iter_j)
-							adj_list[j][blob_iter_j] = (i,blob_iter_i)
+							adj_list[i][blob_iter_i].append((j,blob_iter_j))
+							adj_list[j][blob_iter_j].append((i,blob_iter_i))
 							#draw edges and centers in image for display
 							cv2.line(imgcopy, center1, center2, (0,0,0), 2)
 
