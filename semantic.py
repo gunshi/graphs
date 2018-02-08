@@ -3,8 +3,12 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 
+#need to do query graph filtering also
+
+#fuse previous frame's blobs acc to check
+#global graph adding
 #visualise individually to debug
-#read sequence of images and their odom
+
 #fusing and checking
 #see if fusing acc to centroids is fine
 
@@ -13,9 +17,13 @@ path='/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/00
 synthia_memory_folder = ''
 n_memory = 100
 memory_odom_list = []
+memory_odom_list_filtered = []
+frames_memory_filtered = []
+
 synthia_live_folder = ''
 n_live = 10
 live_odom_list = []
+frames_live =[]
 
 nets=['enet','GT_synthia']
 datasets=['mapillary','synthia','gta']
@@ -75,6 +83,18 @@ categ1 = []
 def config():
 	f=2
 
+def compute_rel_odom(matA, matB): #A is src, B is dest
+    matA_inv=linalg.inv(matA_4x4)
+    #src inv * tgt = relative transform
+    rel_odom_src_tgt=np.matmul(matA_inv,matB)
+    ##converting to euler to get 6d =(3+3) dimensional vector for pose
+    rel_tform_rot=rel_odom_src_tgt[0:3,0:3]
+    rx,ry,rz = euler_from_matrix(rel_tform_rot)
+    rel_tform_vec = [ rel_odom_src_tgt[0,3], rel_odom_src_tgt[1,3], rel_odom_src_tgt[2,3], rx, ry, rz]
+    a = np.array((rel_odom_src_tgt[0,3], rel_odom_src_tgt[1,3], rel_odom_src_tgt[2,3]))
+    dist = numpy.linalg.norm(a)
+    return rel_tform_vec, dist
+
 def load_odom_data(odom_path):
 	#load odom
 	fileobj = open(odom_path,'r')
@@ -84,19 +104,25 @@ def load_odom_data(odom_path):
 		nums = np.reshape(nums, (4,4), order='F')
 		memory_odom_list.append(nums)
 
-def build_graph_synthia():
+def build_graph_synthia(odom_list):
 	img_path = synthia_memory_folder + '%06d.png' % (0,)
 	blob1, adj1, img1, categ1 = build_image_graph(img_path)
 	empty = [[] for i in range(len(rgb_mapping))]
 	global_graph.append(empty)
-	#add to global graph
-	#format
-	#make the info list -to go into every semantic place of appropriate frame - centroids, bbox, cnt, stringinfo
-
+	info_list = format_seg( blob1, categ1, adj1,0) #0 indexed?
 	add_to_global_graph(0,info_list)
+	origin = odom_list[0]
+	frames_memory_filtered.append(0)
 
 	for i in range(1,n_memory):
+		dest = odom_list[i]
 		#decide acc to odom and skip
+		rel_odom, dist = compute_rel_odom(origin, dest)
+		if(dist < 0.025):
+			#skip this frame
+			continue
+		else:
+			frames_memory_filtered.append(i)
 
 		blob0 = blob1
 		adj0 = adj1
