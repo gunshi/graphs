@@ -10,10 +10,13 @@ import time
 path='/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/000001.png'
 synthia_memory_folder = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/'
 memory_odom_path = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/CameraParams/Stereo_Left/Omni_F/concat.txt'
-n_memory = 10
+n_memory = 100
 memory_odom_list = []
 memory_odom_list_filtered = []
+
 frames_memory_filtered = []
+frames_live_filtered = []
+
 
 synthia_live_folder = ''
 n_live = 100
@@ -64,14 +67,15 @@ synthia_semantic_values = [
 rgb_mapping = static_synthia
 
 global_graph =  []
-global_nodes = []
-random_walk_desc = []
+random_walk_desc_live = []
 
-random_walk_query = []
+global_graph =  []
+random_walk_desc_live = []
 
 n_desc = 85
 walk_length = 3
 
+"""
 blob0 = [] 
 adj0 = [] 
 img0 = [] 
@@ -80,11 +84,13 @@ blob1 = []
 adj1 = []
 img1 = [] 
 categ1 = []
+"""
 
 thresh = 80
 area_thresh = 1.25
 thresh_fused = 0
 area_thresh_fused = 0
+
 
 
 def compute_rel_odom(matA, matB): #A is src, B is dest
@@ -131,7 +137,7 @@ def build_graph_synthia(odom_list):
 		#decide acc to odom and skip
 		rel_odom, dist = compute_rel_odom(origin, dest)
 		print('dist of frame '+str(i)+' = '+str(dist))
-		if(dist < 0.03):
+		if(dist < 0.05):
 			print('skipping')
 			#skip this frame
 			continue
@@ -159,14 +165,8 @@ def build_graph_synthia(odom_list):
 			add_to_global_graph(i, counter, info_list)
 			counter += 1
 
-		#check with previous and add to graph
-	print(global_graph[0])
-	print('..........................................')
-	print(global_graph[1])
-	print('..........................................')
-	print(global_graph[2])
 	call_random_walk()
-
+	see_desc(0,0,0)
 
 def format_seg(blob_list, categ_list, adj_list, frame_num, position_num):
 	format_list = [[] for i in range(len(rgb_mapping))]
@@ -191,6 +191,10 @@ def format_seg(blob_list, categ_list, adj_list, frame_num, position_num):
 					for edge_ele in edge_list:
 						index_to_convert = edge_ele[0]
 						index_converted = rgb_mapping.index(categ_list[index_to_convert])
+						#print(index_to_convert)
+						#print(index_converted)
+						#print('...')
+						#time.sleep(1)
 						edge_list_formatted.append((frame_num, position_num, index_converted,edge_ele[1]))
 					blob_list[index][j]['edgeInfo'] = edge_list_formatted
 
@@ -381,7 +385,17 @@ def add_to_global_graph(frame_num, position_num, blob_list): #blobs list acc to 
 
 def random_walk(walk_left, walk_length, list_not, position_num, sem_categ, blob_num, fused_case = False):
 
-	print('walk left '+str(walk_left))
+	if(len(list_not)>=4):
+		print('----------------')
+		print(list_not)
+		print(walk_left)
+		print(walk_length)
+		print('last node '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' of list')
+
+		print('----------------')
+		time.sleep(20)
+
+	#print('walk left '+str(walk_left))
 	if(fused_case):
 		assert(walk_left!=0)
 	if (walk_left==0):
@@ -389,8 +403,12 @@ def random_walk(walk_left, walk_length, list_not, position_num, sem_categ, blob_
 		#print(list_not)
 		#time.sleep(1)
 		head = list_not[0]
-		print(len(list_not))
-		print('walk ended '+str(head[0]) + '..' + str(head[1]) + '..' + str(head[2]))
+		print('----------------')
+		print('last list')
+		print(list_not)
+		print('----------------')
+		#print(len(list_not))
+		#print('walk ended '+str(head[0]) + '..' + str(head[1]) + '..' + str(head[2]))
 		random_walk_desc[head[0]][head[1]][head[2]].append([])
 		for el in list_not:
 			random_walk_desc[head[0]][head[1]][head[2]][-1].append((el[0],el[1],el[2]))
@@ -398,9 +416,12 @@ def random_walk(walk_left, walk_length, list_not, position_num, sem_categ, blob_
 
 	no_neigh = True
 
+
 	blob = global_graph[position_num][sem_categ][blob_num]
 	edge_list = blob['edgeInfo']
+
 	for edge in edge_list:
+
 		(frame_num, position, sem, blob_pos) = edge
 		if([position, sem, blob_pos] not in list_not):
 			edge_blob = global_graph[position][sem][blob_pos]
@@ -408,21 +429,49 @@ def random_walk(walk_left, walk_length, list_not, position_num, sem_categ, blob_
 				continue
 			no_neigh = False
 			if(fused_case):
-				random_walk(walk_left-1, walk_length, list_not, position, sem, blob_pos, False) ## minus one?
+				list_not_temp = list_not[:]
+
+				print('--------------------------')
+				print('node is a fused child case')
+				print('walk left '+str(walk_left))
+				print('checking out '+str(position)+','+str(sem)+','+str(blob_pos))
+				print(list_not_temp)
+
+				print('--------------------------')
+
+				random_walk(walk_left-1, walk_length, list_not_temp, position, sem, blob_pos, False) ## minus one?
+
+
 			else:	
-				print('appending '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' to the list')
 				list_not2 = list_not[:]
 				list_not2.append([position_num,sem_categ,blob_num])
+
+				print('--------------------------')
+				print('walk left '+str(walk_left))
+				print('appending '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' to the list')
+				print('checking out '+str(position)+','+str(sem)+','+str(blob_pos))
+				print(list_not2)
+
+				print('--------------------------')
+
 				random_walk(walk_left-1, walk_length, list_not2, position, sem, blob_pos, False)
 
 	if(not fused_case):
 		fuse_list = blob['parentOf']
 		for children_info in fuse_list:
-			print('going to fused child')
 			no_neigh = False
 			#child_blob = global_graph[children_info[0]][children_info[1]][children_info[2]]
 			list_not2 = list_not[:]
 			list_not2.append([position_num,sem_categ,blob_num])
+
+			print('--------------------------')
+			print('going to fused child')
+
+			print('walk left '+str(walk_left))
+			print('appending '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' to the list')
+			print('checking out child '+str(children_info[0])+','+str(children_info[1])+','+str(children_info[2]))
+			print(list_not2)
+			print('--------------------------')
 
 			random_walk(walk_left, walk_length, list_not2, children_info[0],children_info[1],children_info[2], True)
 
@@ -478,9 +527,35 @@ def call_random_walk():
 	#print(len(random_walk_desc[4][0][0]))
 	#print(len(random_walk_desc[5][0][0]))
 
+	blob = global_graph[0][0][0]
+	cnt = blob['cnt']
+	blank = np.zeros((760,1280,3), np.uint8)
+	cv2.drawContours(blank, [cnt], 0, (255,255,255), 3)
+	plt.imshow(blank)
+	plt.show()
 	for t in random_walk_desc[0][0][0]:
 		print(t)
 	print(len(random_walk_desc[0][0][0]))
+
+def see_desc(ind1,ind2,ind3):
+	blank_image = np.zeros((1900,300,3), np.uint8)
+	blank_image[:,:] = (255,255,255)      # (B, G, R)
+	x=0
+	for desc in random_walk_desc[ind1][ind2][ind3][:200]:
+		y=0
+		#change rows
+		for node in desc:
+			#keep shifting columns
+			#print('node')
+			#print(node[1])
+			blank_image[x:x+8,y:y+26] = synthia_semantic_values[rgb_mapping[node[1]]]
+			y += 26
+
+		x +=8
+	blank_image = cv2.cvtColor(blank_image, cv2.COLOR_RGB2BGR)
+	plt.imshow(blank_image)
+	plt.show()
+
 
 def build_image_graph(imgpath):
 	img_seg = cv2.imread(imgpath)
@@ -625,10 +700,6 @@ def remove_noise(img):
 	#plt.show()
 	return closing
 
-def get_descriptors(graph):
-	desc=[]
-	return desc
-
 def union(a,b):
   	x = min(a[0], b[0])
   	y = min(a[1], b[1])
@@ -644,6 +715,394 @@ def intersection(a,b):
   	if w<0 or h<0: return () # or (0,0,0,0) ?
   	return (x, y, w, h)
 
-#build_image_graph(path)
 load_odom_data(memory_odom_path,True)
 build_graph_synthia(memory_odom_list)
+
+
+#=======================================================================================================================
+
+## for live graph=======================================================================================================
+
+#make subsetting for live seq
+#testrun whole live procedure
+#call both live and memory
+#match with memory--
+
+def build_live_graph_synthia(odom_list):
+	img_path = synthia_memory_folder + '%06d.png' % (0,)
+	blob1, adj1, img1, categ1, _ = build_image_graph(img_path)
+	empty = [[] for i in range(len(rgb_mapping))]
+	global_graph_live.append(empty)
+	random_walk_desc_live.append(empty)
+	info_list = format_seg( blob1, categ1, adj1, 0, 0) #0 indexed?
+	add_to_global_graph_live(0,0,info_list)
+	origin = odom_list[0]
+	frames_live_filtered.append(0)
+	counter = 1
+
+	for i in range(1,n_memory):
+		dest = odom_list[i]
+		#decide acc to odom and skip
+		rel_odom, dist = compute_rel_odom(origin, dest)
+		print('dist of frame '+str(i)+' = '+str(dist))
+		if(dist < 0.05):
+			print('skipping')
+			#skip this frame
+			continue
+		else:
+			if(dist<0.15):
+				thresh = 82 
+			else:
+				thresh = 97
+			origin = dest
+			print('frame '+str(i))
+			frames_live_filtered.append(i)
+
+			blob0 = blob1
+			adj0 = adj1
+			img0 = img1
+			categ0 = categ1
+
+			img_path = synthia_live_folder + '%06d.png' % (i,)
+			blob1, adj1, img1, categ1, imgcurrent = build_image_graph(img_path)
+			global_graph_live.append(empty)
+			random_walk_desc_live.append(empty)
+
+			info_list = format_seg(blob1, categ1, adj1, i, counter )
+			info_list = check_with_previous_and_fuse_live(i, counter, info_list, imgcurrent)
+			add_to_global_graph_live(i, counter, info_list)
+			counter += 1
+
+	call_random_walk_live()
+	see_desc_live(0,0,0)
+	
+
+def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcurrent):
+	imgcurrent2 = np.copy(imgcurrent)
+	print('PREVIOUS AND FUSE')
+	print(frame_num)
+	print(position_num)
+	#centroids less than some dist
+	#same categ
+	#odom-----
+	#area needs to be around the same(slightly larger)
+	#bounding box/convex hull roughly the same-----
+	#contour overlap?
+
+	ref_list = global_graph_live[position_num-1]
+	#print('len ref list')
+	#print(len(ref_list))
+	for sem_categ in range(len(rgb_mapping)):
+		
+		if(info_list[sem_categ] and ref_list[sem_categ]):
+			#print('not denied')
+			counter= 0 
+			for blob in info_list[sem_categ]:
+				counter_ref = 0
+				for blob_ref in ref_list[sem_categ]:
+					dist = np.linalg.norm(np.array(blob['center'])-np.array(blob_ref['center']))
+					area_ratio = blob['area']/(1.*blob_ref['area']) ##is this float division?
+					#print('dist of centroid' +str(dist))
+					#print('area ratio '+str(area_ratio))
+					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.9):
+						print('FUSING')
+						"""
+						if(sem_categ==0):
+							cv2.drawContours(imgcurrent2, [blob['cnt']], 0, (255,255,255), 6)
+							cv2.drawContours(imgcurrent2, [blob_ref['cnt']], 0, (0,255,0), 6) ####
+							plt.imshow(imgcurrent2)
+							plt.show()
+						"""
+						if(blob_ref['parentOf']):
+							print('FUSING TO ONE THAT IS ALREADY A PARENT')
+							#print('dist of centroid' +str(dist))
+							#print('area ratio '+str(area_ratio))
+						#add condition to see if not already fused
+						if(blob_ref['fused']):
+							print('GLOBAL AND LOCAL')
+						# assign global and local parents
+							fuse_info = blob_ref['fuseInfo']
+							global_graph_live[fuse_info[0]][fuse_info[1]][fuse_info[2]]['parentOf'].append((position_num, sem_categ, counter)) #####  change
+							#can optionally add local child info to local parent also 
+							#
+							blob_ref['localParentOf'].append((position_num, sem_categ, counter))
+							blob['fuseDepth'] = blob_ref['fuseDepth']+1
+							blob['fused'] =  True
+							blob['fuseInfo'] = fuse_info
+							blob['localParent'] = [position_num-1, sem_categ, counter_ref]
+						else:
+							blob_ref['localParentOf'].append((position_num, sem_categ, counter))
+							blob_ref['parentOf'].append((position_num, sem_categ, counter))
+							blob['fused'] =  True
+							blob['fuseInfo'] = [position_num-1, sem_categ, counter_ref]
+							blob['localParent'] = [position_num-1, sem_categ, counter_ref]
+							blob['fuseDepth'] = 1
+						#cv2.line(imgcurrent, blob['center'], blob_ref['center'], (255,255,255), 2)
+						#length = np.linalg.norm(np.array(blob['center'])-np.array(blob_ref['center']))
+						#print('early line length is: '+str(length))
+						cv2.circle(imgcurrent,blob['center'], 8, (255,255,255), 2)
+						break
+					counter_ref += 1
+				counter +=1
+			#recovery tactic here
+			counter_ref = 0
+
+
+
+			for blob_ref in ref_list[sem_categ]:
+				if(not blob_ref['parentOf']):
+					counter = 0
+					for blob in info_list[sem_categ]:
+						if(blob['fused']):
+							dist = np.linalg.norm(np.array(blob['center'])-np.array(blob_ref['center']))
+							area_ratio = blob['area']/(1.*blob_ref['area'])
+							#if(sem_categ==0 and blob_ref['center'][0]<550 and blob_ref['center'][1]<550):
+								#imgcurrent3 = np.copy(imgcurrent2)
+								#cv2.drawContours(imgcurrent3, [blob_ref['cnt']], 0, (255,255,255), 6) ####
+								#cv2.drawContours(imgcurrent3, [blob['cnt']], 0, (0,0,255), 6) ####
+								#plt.imshow(imgcurrent3)
+								#plt.show()
+
+							if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.9):
+								print('CHANGING')
+
+								#unset previous parent's info!
+								assert(blob['fused'])
+								parent_tuple = blob['localParent']
+								parent_blob = global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]
+
+
+								if(len(parent_blob['localParentOf'])>2):
+									"""
+									if(sem_categ==0):
+										print(dist)
+										print(area_ratio)
+										cv2.drawContours(imgcurrent, [blob['cnt']], 0, (255,255,255), 6)
+										cv2.drawContours(imgcurrent, [blob_ref['cnt']], 0, (0,255,0), 6) ####
+										cv2.drawContours(imgcurrent, [parent_blob['cnt']], 0, (0,0,255), 6)
+										plt.imshow(imgcurrent)
+										plt.show()
+									"""
+									if(parent_tuple == blob['fuseInfo']):
+										to_remove = global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['parentOf'].index((position_num, sem_categ, counter))
+										to_remove2 = global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['localParentOf'].index((position_num, sem_categ, counter))
+
+										del global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['parentOf'][to_remove]
+										del global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['localParentOf'][to_remove2]
+
+										blob_ref['parentOf'].append((position_num, sem_categ, counter))
+										blob_ref['localParentOf'].append((position_num, sem_categ, counter))
+										blob['fused'] =  True
+										blob['fuseInfo'] = [position_num-1, sem_categ, counter_ref]
+										blob['localParent'] = [position_num-1, sem_categ, counter_ref]
+
+									else:
+										global_par = blob['fuseInfo'] #global parent
+										
+										to_remove = global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['localParentOf'].index((position_num, sem_categ, counter))
+										to_remove2 = global_graph_live[global_par[0]][sem_categ][global_par[2]]['parentOf'].index((position_num, sem_categ, counter))
+
+										del global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['localParentOf'][to_remove]
+										del global_graph_live[global_par[0]][sem_categ][global_par[2]]['parentOf'][to_remove2]
+
+										if(blob_ref['fused']):
+										# assign global and local parents
+											fuse_info = blob_ref['fuseInfo']
+											global_graph_live[fuse_info[0]][fuse_info[1]][fuse_info[2]]['parentOf'].append((position_num, sem_categ, counter))						
+											blob_ref['localParentOf'].append((position_num, sem_categ, counter))
+											blob['fuseDepth'] = blob_ref['fuseDepth']+1
+											blob['fused'] =  True
+											blob['fuseInfo'] = fuse_info
+											blob['localParent'] = [position_num-1, sem_categ, counter_ref]
+										else:
+											blob_ref['localParentOf'].append((position_num, sem_categ, counter))
+											blob_ref['parentOf'].append((position_num, sem_categ, counter))
+											blob['fused'] =  True
+											blob['fuseInfo'] = [position_num-1, sem_categ, counter_ref]
+											blob['localParent'] = [position_num-1, sem_categ, counter_ref]
+											blob['fuseDepth'] = 1
+
+
+						counter +=1
+				counter_ref += 1
+
+
+				#draw lines between centres and disp image
+				for blob in info_list[sem_categ]:
+					if blob['fused']:
+						parent_tuple = blob['fuseInfo']
+						#print(parent_tuple)
+						cv2.line(imgcurrent, blob['center'],global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['center'], (255,255,255), 2)
+						length = np.linalg.norm(np.array(blob['center'])-np.array(global_graph_live[parent_tuple[0]][sem_categ][parent_tuple[2]]['center']))
+						if(sem_categ==0 and blob['center'][0]<550 and blob['center'][1]<550):
+							print('line length is: '+str(length))
+
+
+
+		else:
+			print('if denied')
+	#disp image
+	print('displaying fused info image')
+	#plt.imshow(imgcurrent)
+	#plt.show()
+
+
+def add_to_global_graph_live(frame_num, position_num, blob_list): #blobs list acc to semantic categs, with blob infos
+	global_graph_live[position_num] = blob_list
+	random_walk_desc_live[position_num] = [[[] for blob in semcatblobs] for semcatblobs in blob_list]
+	print(len(blob_list))
+	print('add to global graph at '+str(position_num))
+	print(len(global_graph_live))
+	print(len(global_graph_live[position_num]))
+	print('...........')
+
+
+def call_random_walk_live():
+	counter_frame = 0
+	for frame_list in global_graph_live:
+		for sem_cat in range(len(rgb_mapping)):
+			counter = 0
+			for blob in frame_list[sem_cat]:
+				if(not blob['fused']):
+					print('calling for frame' + str(counter_frame))
+					print('semcat '+str(sem_cat))
+					random_walk_live(walk_length, walk_length, [], counter_frame, sem_cat, counter, False) ##do we need to pass here?
+					counter +=1
+		counter_frame +=1
+	print(len(random_walk_desc_live[0][0][0]))
+	print(len(random_walk_desc_live[1][0][0]))
+	print(len(random_walk_desc_live[2][0][0]))
+	print(len(random_walk_desc_live[3][0][0]))
+
+
+	blob = global_graph_live[0][0][0]
+	cnt = blob['cnt']
+	blank = np.zeros((760,1280,3), np.uint8)
+	cv2.drawContours(blank, [cnt], 0, (255,255,255), 3)
+	plt.imshow(blank)
+	plt.show()
+	for t in random_walk_desc_live[0][0][0]:
+		print(t)
+	print(len(random_walk_desc_live[0][0][0]))
+
+
+def see_desc_live(ind1,ind2,ind3):
+	blank_image = np.zeros((1900,300,3), np.uint8)
+	blank_image[:,:] = (255,255,255)      # (B, G, R)
+	x=0
+	for desc in random_walk_desc_live[ind1][ind2][ind3][:200]:
+		y=0
+		#change rows
+		for node in desc:
+			#keep shifting columns
+			#print('node')
+			#print(node[1])
+			blank_image[x:x+8,y:y+26] = synthia_semantic_values[rgb_mapping[node[1]]]
+			y += 26
+
+		x +=8
+	blank_image = cv2.cvtColor(blank_image, cv2.COLOR_RGB2BGR)
+	plt.imshow(blank_image)
+	plt.show()
+
+
+def random_walk_live(walk_left, walk_length, list_not, position_num, sem_categ, blob_num, fused_case = False):
+
+	if(len(list_not)>=4):
+		print('----------------')
+		print(list_not)
+		print(walk_left)
+		print(walk_length)
+		print('last node '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' of list')
+
+		print('----------------')
+		time.sleep(20)
+
+	#print('walk left '+str(walk_left))
+	if(fused_case):
+		assert(walk_left!=0)
+	if (walk_left==0):
+		list_not.append((position_num,sem_categ,blob_num))
+		#print(list_not)
+		#time.sleep(1)
+		head = list_not[0]
+		print('----------------')
+		print('last list')
+		print(list_not)
+		print('----------------')
+		#print(len(list_not))
+		#print('walk ended '+str(head[0]) + '..' + str(head[1]) + '..' + str(head[2]))
+		random_walk_desc_live[head[0]][head[1]][head[2]].append([])
+		for el in list_not:
+			random_walk_desc_live[head[0]][head[1]][head[2]][-1].append((el[0],el[1],el[2]))
+		return
+
+	no_neigh = True
+
+
+	blob = global_graph_live[position_num][sem_categ][blob_num]
+	edge_list = blob['edgeInfo']
+
+	for edge in edge_list:
+
+		(frame_num, position, sem, blob_pos) = edge
+		if([position, sem, blob_pos] not in list_not):
+			edge_blob = global_graph_live[position][sem][blob_pos]
+			if(edge_blob['fused']):
+				continue
+			no_neigh = False
+			if(fused_case):
+				list_not_temp = list_not[:]
+
+				print('--------------------------')
+				print('node is a fused child case')
+				print('walk left '+str(walk_left))
+				print('checking out '+str(position)+','+str(sem)+','+str(blob_pos))
+				print(list_not_temp)
+
+				print('--------------------------')
+
+				random_walk_live(walk_left-1, walk_length, list_not_temp, position, sem, blob_pos, False) ## minus one?
+
+
+			else:	
+				list_not2 = list_not[:]
+				list_not2.append([position_num,sem_categ,blob_num])
+
+				print('--------------------------')
+				print('walk left '+str(walk_left))
+				print('appending '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' to the list')
+				print('checking out '+str(position)+','+str(sem)+','+str(blob_pos))
+				print(list_not2)
+
+				print('--------------------------')
+
+				random_walk_live(walk_left-1, walk_length, list_not2, position, sem, blob_pos, False)
+
+	if(not fused_case):
+		fuse_list = blob['parentOf']
+		for children_info in fuse_list:
+			no_neigh = False
+			#child_blob = global_graph[children_info[0]][children_info[1]][children_info[2]]
+			list_not2 = list_not[:]
+			list_not2.append([position_num,sem_categ,blob_num])
+
+			print('--------------------------')
+			print('going to fused child')
+
+			print('walk left '+str(walk_left))
+			print('appending '+str(position_num)+','+str(sem_categ)+','+str(blob_num)+' to the list')
+			print('checking out child '+str(children_info[0])+','+str(children_info[1])+','+str(children_info[2]))
+			print(list_not2)
+			print('--------------------------')
+
+			random_walk_live(walk_left, walk_length, list_not2, children_info[0],children_info[1],children_info[2], True)
+
+	if(no_neigh):
+		print('NO NEIGHBOURS')
+		return 
+
+
+
+
+
