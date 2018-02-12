@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from transformations import euler_from_matrix
 from random import random
 import time
+from collections import Counter
 
 
 path='/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/000001.png'

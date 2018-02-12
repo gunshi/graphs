@@ -6,8 +6,18 @@ from transformations import euler_from_matrix
 from random import random
 import time
 
-semantic_dict = []
-static_dict = []
+static_dict = [0,3,5,6,7,8,9]
+semantic_dict = [
+	[64, 64, 0], 
+	[0, 0, 128], ##no
+	[0, 0, 0],  ##no
+	[0, 128, 128], 
+	[128, 128, 128], ##no
+	[64, 0, 192], 
+	[128, 0, 64], 
+	[0, 192, 64], 
+	[128, 64, 128], 
+	[192, 0, 0] ]
 
 
 sem_path = '/home/gunshi/Downloads/labelling_release/test/gt/'
@@ -16,10 +26,6 @@ img_path = '/home/gunshi/Downloads/labelling_release/test/images/'
 
 def get_unique_colors(img):
 	return set( tuple(v) for m2d in img for v in m2d )
-
-#get all bounding boxes
-def get_all_boxes(img, sem_img):
-
 
 def get_sep_category_imgs(img):
 	sep_seg_imgs=[]
@@ -53,7 +59,6 @@ def get_blobs_and_boxes(sem_imgs, real_img):
 		if(img==None):
 			counter+=1
 			continue
-		value = categ_list[index]
 		_,contours,hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, 2)
 		#img_3channel = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 		for cnt in contours:
@@ -68,23 +73,26 @@ def get_blobs_and_boxes(sem_imgs, real_img):
 					cy = int(M['m01']/M['m00'])
 				"""
 				x,y,w,h = cv2.boundingRect(cnt)
-    			roi = real_img[max(0,y-20):min(height,y+h+20),max(0,x-20):min(width,x+w+20)]
-    			categ_wise_boxes[counter].append(roi)
-    	counter +=1
-		#plt.imshow()
-		#plt.show()
+				roi = real_img[max(0,y-20):min(height,y+h+20),max(0,x-20):min(width,x+w+20)]
+				categ_wise_boxes[counter].append(roi)
+				plt.imshow(roi)
+				plt.show()
+		counter +=1
+
 
 	return categ_wise_boxes
 
 
 def build_image_graph():
 
-	for i in range(20):
-		img_seg_path = sem_path +  '15_%06d.png' % (i,)
+	for i in range(1,20):
+		img_seg_path = sem_path + str(i) + '.png'
 		img_seg = cv2.imread(img_seg_path)
+		#img_seg = cv2.cvtColor(img_seg, cv2.COLOR_BGR2RGB)
 		print(img_seg.shape)
-		img_seg = cv2.cvtColor(img_seg, cv2.COLOR_BGR2RGB)
-		real_img_path = img_path +  '15_%06d.png' % (i,)
+		colors = get_unique_colors(img_seg)
+		print(colors)
+		real_img_path = img_path + str(i) + '.png'
 		real_img = cv2.imread(real_img_path)
 	
 		sep_seg_imgs = get_sep_category_imgs(img_seg) #one entry per static semantic category
@@ -97,12 +105,11 @@ def build_image_graph():
 			else:
 				denoised = remove_noise(sep_img)
 				sep_denoised.append(denoised)
-		categ_wise_boxes = get_blobs_and_boxes(sep_denoised,sep_seg_categs)
+		categ_wise_boxes = get_blobs_and_boxes(sep_denoised,real_img)
 		#compute embeddings
 	
 	return img_seg
 
-def get_embedding():
-	return
-
+#maintain scale
+build_image_graph()
  
