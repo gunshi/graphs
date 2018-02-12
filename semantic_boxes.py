@@ -45,7 +45,7 @@ def remove_noise(img):
 	return closing
 
 def get_blobs_and_boxes(sem_imgs, real_img):
-	height, width, channels =real_img.shape
+	height, width, channels = real_img.shape
 	categ_wise_boxes = [[] for i in range(len(static_dict))]
 	
 	counter = 0
@@ -71,7 +71,7 @@ def get_blobs_and_boxes(sem_imgs, real_img):
     			roi = real_img[max(0,y-20):min(height,y+h+20),max(0,x-20):min(width,x+w+20)]
     			categ_wise_boxes[counter].append(roi)
     	counter +=1
-		#plt.imshow(img_3channel)
+		#plt.imshow()
 		#plt.show()
 
 	return categ_wise_boxes
@@ -87,7 +87,7 @@ def build_image_graph():
 		real_img_path = img_path +  '15_%06d.png' % (i,)
 		real_img = cv2.imread(real_img_path)
 	
-		sep_seg_imgs = get_sep_category_imgs(img_seg)
+		sep_seg_imgs = get_sep_category_imgs(img_seg) #one entry per static semantic category
 	
 		sep_denoised = []
 		for sep_img in sep_seg_imgs:
@@ -97,10 +97,10 @@ def build_image_graph():
 			else:
 				denoised = remove_noise(sep_img)
 				sep_denoised.append(denoised)
-		categ_wise_boxes = get_blobs_and_centroids(sep_denoised,sep_seg_categs)
+		categ_wise_boxes = get_blobs_and_boxes(sep_denoised,sep_seg_categs)
 		#compute embeddings
 	
-	return blob_list, adj_list, img_seg, sep_seg_categs, img_seg 
+	return img_seg
 
 def get_embedding():
 	return
