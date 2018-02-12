@@ -10,6 +10,11 @@ import time
 path='/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/000001.png'
 synthia_memory_folder = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/'
 memory_odom_path = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/CameraParams/Stereo_Left/Omni_F/concat.txt'
+synthia_memory_folder_depth = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/Depth/Stereo_Left/Omni_F/'
+
+
+live_odom_path = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/CameraParams/Stereo_Left/Omni_F/concat.txt'
+
 n_memory = 100
 memory_odom_list = []
 memory_odom_list_filtered = []
@@ -17,8 +22,8 @@ memory_odom_list_filtered = []
 frames_memory_filtered = []
 frames_live_filtered = []
 
-
-synthia_live_folder = ''
+synthia_live_folder_depth = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/Depth/Stereo_Left/Omni_F/'
+synthia_live_folder = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/'
 n_live = 100
 live_odom_list = []
 frames_live =[]
@@ -67,10 +72,11 @@ synthia_semantic_values = [
 rgb_mapping = static_synthia
 
 global_graph =  []
-random_walk_desc_live = []
+random_walk_desc = []
 
-global_graph =  []
+global_graph_live =  []
 random_walk_desc_live = []
+random_walk_sems_memory = []
 
 n_desc = 85
 walk_length = 3
@@ -117,15 +123,13 @@ def load_odom_data(odom_path, memory = 0):
 		else:
 			live_odom_list.append(nums)
 
-def get_live_odom_subset(odom_list, list_range):
-	return 
-
 def build_graph_synthia(odom_list):
 	img_path = synthia_memory_folder + '%06d.png' % (0,)
 	blob1, adj1, img1, categ1, _ = build_image_graph(img_path)
 	empty = [[] for i in range(len(rgb_mapping))]
 	global_graph.append(empty)
 	random_walk_desc.append(empty)
+	random_walk_sems_memory.append(empty)
 	info_list = format_seg( blob1, categ1, adj1, 0, 0) #0 indexed?
 	add_to_global_graph(0,0,info_list)
 	origin = odom_list[0]
@@ -159,7 +163,7 @@ def build_graph_synthia(odom_list):
 			blob1, adj1, img1, categ1, imgcurrent = build_image_graph(img_path)
 			global_graph.append(empty)
 			random_walk_desc.append(empty)
-
+			random_walk_sems_memory.append(empty)
 			info_list = format_seg(blob1, categ1, adj1, i, counter )
 			info_list = check_with_previous_and_fuse(i, counter, info_list, imgcurrent)
 			add_to_global_graph(i, counter, info_list)
@@ -231,7 +235,7 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 					area_ratio = blob['area']/(1.*blob_ref['area']) ##is this float division?
 					#print('dist of centroid' +str(dist))
 					#print('area ratio '+str(area_ratio))
-					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.9):
+					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
 						print('FUSING')
 						"""
 						if(sem_categ==0):
@@ -290,7 +294,7 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 								#plt.imshow(imgcurrent3)
 								#plt.show()
 
-							if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.9):
+							if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
 								print('CHANGING')
 
 								#unset previous parent's info!
@@ -377,6 +381,7 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 def add_to_global_graph(frame_num, position_num, blob_list): #blobs list acc to semantic categs, with blob infos
 	global_graph[position_num] = blob_list
 	random_walk_desc[position_num] = [[[] for blob in semcatblobs] for semcatblobs in blob_list]
+	random_walk_sems_memory[position_num] = [[[] for blob in semcatblobs] for semcatblobs in blob_list]
 	print(len(blob_list))
 	print('add to global graph at '+str(position_num))
 	print(len(global_graph))
@@ -410,8 +415,12 @@ def random_walk(walk_left, walk_length, list_not, position_num, sem_categ, blob_
 		#print(len(list_not))
 		#print('walk ended '+str(head[0]) + '..' + str(head[1]) + '..' + str(head[2]))
 		random_walk_desc[head[0]][head[1]][head[2]].append([])
+		random_walk_sems_memory[head[0]][head[1]][head[2]].append([])
+
 		for el in list_not:
 			random_walk_desc[head[0]][head[1]][head[2]][-1].append((el[0],el[1],el[2]))
+			random_walk_sems_memory[head[0]][head[1]][head[2]][-1].append(el[1])
+		random_walk_sems_memory[head[0]][head[1]][head[2]][-1] = tuple(random_walk_sems_memory[head[0]][head[1]][head[2]][-1])
 		return
 
 	no_neigh = True
@@ -536,6 +545,8 @@ def call_random_walk():
 	for t in random_walk_desc[0][0][0]:
 		print(t)
 	print(len(random_walk_desc[0][0][0]))
+	print(len(list(set(random_walk_sems_memory[0][0][0]))))
+	print(set(random_walk_sems_memory[0][0][0]))
 
 def see_desc(ind1,ind2,ind3):
 	blank_image = np.zeros((1900,300,3), np.uint8)
@@ -558,7 +569,9 @@ def see_desc(ind1,ind2,ind3):
 
 
 def build_image_graph(imgpath):
+	print(imgpath)
 	img_seg = cv2.imread(imgpath)
+	print(img_seg.shape)
 	img_seg = cv2.cvtColor(img_seg, cv2.COLOR_BGR2RGB)
 
 	#for i in range(600,750):
@@ -723,24 +736,27 @@ build_graph_synthia(memory_odom_list)
 
 ## for live graph=======================================================================================================
 
-#make subsetting for live seq
-#testrun whole live procedure
 #call both live and memory
 #match with memory--
+#what is that brown
+#how to subselect desc
 
-def build_live_graph_synthia(odom_list):
-	img_path = synthia_memory_folder + '%06d.png' % (0,)
-	blob1, adj1, img1, categ1, _ = build_image_graph(img_path)
+def build_live_graph_synthia(odom_list, start, end):
+	img_path = synthia_live_folder + '%06d.png' % (start,)
+	depth_img_path = synthia_live_folder_depth + '%06d.png' % (start,)
+
+
+	blob1, adj1, img1, categ1, segimg = build_image_graph(img_path)
 	empty = [[] for i in range(len(rgb_mapping))]
 	global_graph_live.append(empty)
 	random_walk_desc_live.append(empty)
-	info_list = format_seg( blob1, categ1, adj1, 0, 0) #0 indexed?
-	add_to_global_graph_live(0,0,info_list)
-	origin = odom_list[0]
-	frames_live_filtered.append(0)
+	info_list = format_seg( blob1, categ1, adj1, start, 0) 
+	add_to_global_graph_live(start,0,info_list)
+	origin = odom_list[start]
+	frames_live_filtered.append(start)
 	counter = 1
 
-	for i in range(1,n_memory):
+	for i in range(start+1,end):
 		dest = odom_list[i]
 		#decide acc to odom and skip
 		rel_odom, dist = compute_rel_odom(origin, dest)
@@ -764,18 +780,112 @@ def build_live_graph_synthia(odom_list):
 			categ0 = categ1
 
 			img_path = synthia_live_folder + '%06d.png' % (i,)
+			img_path_depth = synthia_live_folder + '%06d.png' % (i,)
+
 			blob1, adj1, img1, categ1, imgcurrent = build_image_graph(img_path)
 			global_graph_live.append(empty)
 			random_walk_desc_live.append(empty)
 
 			info_list = format_seg(blob1, categ1, adj1, i, counter )
+			print(len(info_list))
 			info_list = check_with_previous_and_fuse_live(i, counter, info_list, imgcurrent)
+			print(len(info_list))
 			add_to_global_graph_live(i, counter, info_list)
 			counter += 1
 
 	call_random_walk_live()
 	see_desc_live(0,0,0)
 	
+#get bbox for that cnt, and get corresponding depth bbox
+#copy just that part of depth that is in contour, to a blank uint8 image
+#find non zero vals in deopth, find sum of non zero vals, find avg
+#do this for both
+#find diff, is it same as odom?
+
+def build_image_graph_aux(imgpath):
+	print(imgpath)
+	img_seg = cv2.imread(imgpath)
+	print(img_seg.shape)
+	img_seg = cv2.cvtColor(img_seg, cv2.COLOR_BGR2RGB)
+
+	#for i in range(600,750):
+		#print(img_seg[340,i])
+	#(img_seg)
+	#plt.show()
+	print(img_seg.shape)
+
+	sep_seg_imgs, sep_seg_categs, blob_list, adj_list = get_sep_category_imgs(img_seg)
+	sep_denoised = []
+	for sep_img in sep_seg_imgs:
+		denoised = remove_noise(sep_img)
+		sep_denoised.append(denoised)
+	blob_list, adj_list = get_blobs_and_centroids(sep_denoised,sep_seg_categs, blob_list, adj_list)
+	return blob_list[0], img_seg
+
+
+def depth_stats(first, second):
+	imgd_path1 = synthia_live_folder_depth + '%06d.png' % (first,)
+	img_path1 = synthia_live_folder + '%06d.png' % (first,)
+	blob1, img1 = build_image_graph_aux(img_path1)
+	cnt = blob1[0]['cnt']
+	blank = np.zeros((760,1280,3), np.uint8)
+	cv2.drawContours(blank, [cnt], 0, (255,255,255), -1)
+	plt.imshow(blank)
+	plt.show()
+	img_d1 = cv2.imread(imgd_path1,-1)
+
+	#print(img_d1.shape)
+	#print(img_d1.dtype)
+	#blank_gray1 = cv2.cvtColor(blank, cv2.COLOR_RGB2GRAY)
+
+	x,y,w,h = cv2.boundingRect(cnt)	
+
+
+
+	base = np.zeros((760,1280), np.uint16)
+	depth_single_channel_copy = img_d1[:,:,1]
+	blank_single_channel_copy = blank[:,:,1]
+	print(depth_single_channel_copy.dtype)
+	print(depth_single_channel_copy.shape)
+	depth_roi_single_channel = depth_single_channel_copy[y:y+w,x:x+h]
+	blank_roi_single_channel = blank_single_channel_copy[y:y+w,x:x+h]
+	base_roi_single_channel = base[y:y+w,x:x+h]
+
+	print(depth_roi_single_channel.dtype)
+	print(base_roi_single_channel.dtype)
+	print(blank_roi_single_channel.dtype)
+	print(blank_roi_single_channel.shape)
+	print(blank_roi_single_channel)
+	print(blank_roi_single_channel.astype(bool))
+	blank_new = blank_roi_single_channel.astype(bool)
+	print(blank_new.shape)
+	print(base_roi_single_channel.shape)
+	print(depth_roi_single_channel.shape)
+	np.copyto( base_roi_single_channel, depth_roi_single_channel, where = blank_new) 
+
+
+	#base_roi_single_channel[blank_roi_single_channel>0]  = depth_roi_single_channel[blank_roi_single_channel>0] 
+	print(base_roi_single_channel)
+	time.sleep(10)
+#now blank is a mask
+#bgr or rgb?
+#compute stats
+	#cv2.bitwise_and( , ,mask=blank_gray1 )
+	print('.........................')
+
+	imgd_path2 = synthia_live_folder_depth + '%06d.png' % (second,)
+	img_path2 = synthia_live_folder + '%06d.png' % (second,)
+	blob2, img2 = build_image_graph_aux(img_path2)
+	cnt = blob2[0]['cnt']
+	blank = np.zeros((760,1280,3), np.uint8)
+	cv2.drawContours(blank, [cnt], 0, (255,255,255), -1)
+	plt.imshow(blank)
+	plt.show()
+	img_d2 = cv2.imread(imgd_path2)
+	#img_d2_3 = cv2.cvtColor(img_d2, cv2.COLOR_GRAY2BGR)
+
+
+
 
 def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcurrent):
 	imgcurrent2 = np.copy(imgcurrent)
@@ -804,7 +914,7 @@ def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcur
 					area_ratio = blob['area']/(1.*blob_ref['area']) ##is this float division?
 					#print('dist of centroid' +str(dist))
 					#print('area ratio '+str(area_ratio))
-					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.9):
+					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
 						print('FUSING')
 						"""
 						if(sem_categ==0):
@@ -863,7 +973,7 @@ def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcur
 								#plt.imshow(imgcurrent3)
 								#plt.show()
 
-							if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.9):
+							if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
 								print('CHANGING')
 
 								#unset previous parent's info!
@@ -945,10 +1055,12 @@ def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcur
 	print('displaying fused info image')
 	#plt.imshow(imgcurrent)
 	#plt.show()
+	return info_list					
 
 
 def add_to_global_graph_live(frame_num, position_num, blob_list): #blobs list acc to semantic categs, with blob infos
 	global_graph_live[position_num] = blob_list
+	print(len(blob_list))
 	random_walk_desc_live[position_num] = [[[] for blob in semcatblobs] for semcatblobs in blob_list]
 	print(len(blob_list))
 	print('add to global graph at '+str(position_num))
@@ -1104,5 +1216,7 @@ def random_walk_live(walk_left, walk_length, list_not, position_num, sem_categ, 
 
 
 
+#depth_stats(4,5)
+#load_odom_data(live_odom_path, False)
 
-
+#build_live_graph_synthia(live_odom_list, 3, 4)
