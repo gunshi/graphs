@@ -8,26 +8,29 @@ import time
 from collections import Counter
 
 
-path='/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/000001.png'
-synthia_memory_folder = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/'
-memory_odom_path = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/CameraParams/Stereo_Left/Omni_F/concat.txt'
-synthia_memory_folder_depth = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-DAWN/Depth/Stereo_Left/Omni_F/'
+path='/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/000001.png'
+synthia_memory_folder = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-DAWN/GT/COLOR/Stereo_Left/Omni_F/'
+memory_odom_path = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-DAWN/CameraParams/Stereo_Left/Omni_F/concat.txt'
+synthia_memory_folder_depth = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-DAWN/Depth/Stereo_Left/Omni_F/'
 
 
-live_odom_path = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-NIGHT/CameraParams/Stereo_Left/Omni_F/concat.txt'
+live_odom_path = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-NIGHT/CameraParams/Stereo_Left/Omni_F/concat.txt'
 
-n_memory = 180
+n_memory = 250
 memory_odom_list = []
 memory_odom_list_filtered = []
 
 frames_memory_filtered = []
 frames_live_filtered = []
 
-synthia_live_folder_depth = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-NIGHT/Depth/Stereo_Left/Omni_F/'
-synthia_live_folder = '/home/gunshi/Downloads/SYNTHIA-SEQS-01-NIGHT/GT/COLOR/Stereo_Left/Omni_F/'
+synthia_live_folder_depth = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-NIGHT/Depth/Stereo_Left/Omni_F/'
+synthia_live_folder = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-NIGHT/GT/COLOR/Stereo_Left/Omni_F/'
 n_live = 100
 live_odom_list = []
 frames_live =[]
+
+
+max_fuse_depth = 0
 
 nets=['enet','GT_synthia']
 datasets=['mapillary','synthia','gta']
@@ -96,8 +99,8 @@ categ1 = []
 
 thresh = 80
 area_thresh = 1.25
-thresh_fused = 0
-area_thresh_fused = 0
+thresh_fused = 70
+area_thresh_fused = 1.2
 matches = []
 
 
@@ -149,9 +152,9 @@ def build_graph_synthia(odom_list):
 			continue
 		else:
 			if(dist<0.2):
-				thresh = 85
+				thresh = 82
 			else:
-				thresh = 100
+				thresh = 90
 			origin = dest
 			print('frame '+str(i))
 			frames_memory_filtered.append(i)
@@ -213,9 +216,9 @@ def format_seg(blob_list, categ_list, adj_list, frame_num, position_num):
 
 def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent):
 	imgcurrent2 = np.copy(imgcurrent)
-	print('PREVIOUS AND FUSE')
-	print(frame_num)
-	print(position_num)
+	#print('PREVIOUS AND FUSE')
+	#print(frame_num)
+	#print(position_num)
 	#centroids less than some dist
 	#same categ
 	#odom-----
@@ -239,7 +242,6 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 					#print('dist of centroid' +str(dist))
 					#print('area ratio '+str(area_ratio))
 					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
-						print('FUSING')
 						"""
 						if(sem_categ==0):
 							cv2.drawContours(imgcurrent2, [blob['cnt']], 0, (255,255,255), 6)
@@ -253,18 +255,27 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 							#print('area ratio '+str(area_ratio))
 						#add condition to see if not already fused
 						if(blob_ref['fused']):
+							if(blob_ref['fuseDepth']>6):
+								counter_ref+=1
+								continue
 							#print('GLOBAL AND LOCAL')
 						# assign global and local parents
+							print('FUSING')
+
 							fuse_info = blob_ref['fuseInfo']
 							global_graph[fuse_info[0]][fuse_info[1]][fuse_info[2]]['parentOf'].append((position_num, sem_categ, counter)) #####  change
 							#can optionally add local child info to local parent also 
 							#
 							blob_ref['localParentOf'].append((position_num, sem_categ, counter))
 							blob['fuseDepth'] = blob_ref['fuseDepth']+1
+							global max_fuse_depth
+							if(blob['fuseDepth']>max_fuse_depth):
+								max_fuse_depth = blob['fuseDepth']
 							blob['fused'] =  True
 							blob['fuseInfo'] = fuse_info
 							blob['localParent'] = [position_num-1, sem_categ, counter_ref]
 						else:
+							print('FUSING')
 							blob_ref['localParentOf'].append((position_num, sem_categ, counter))
 							blob_ref['parentOf'].append((position_num, sem_categ, counter))
 							blob['fused'] =  True
@@ -298,7 +309,7 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 								#plt.show()
 
 							if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
-								print('CHANGING')
+								#print('CHANGING')
 
 								#unset previous parent's info!
 								assert(blob['fused'])
@@ -373,8 +384,8 @@ def check_with_previous_and_fuse(frame_num, position_num, info_list, imgcurrent)
 
 
 
-		else:
-			print('if denied')
+		#else:
+		#	print('if denied')
 	#disp image
 	#print('displaying fused info image')
 	#plt.imshow(imgcurrent)
@@ -507,8 +518,8 @@ def compute_matching(pos1, sem1, blob1, pos2, sem2, blob2):
 	print('len of intersect')
 	print (len(intersect))
 	if(len(intersect)==0):
-		print(c1)
-		print(c2)
+		#print(c1)
+		#print(c2)
 		return
 	sum = 0
 	for key in intersect:
@@ -547,7 +558,7 @@ def call_random_walk():
 					print('calling for frame' + str(counter_frame))
 					print('semcat '+str(sem_cat))
 					random_walk(walk_length, walk_length, [], counter_frame, sem_cat, counter, False) ##do we need to pass here?
-					counter +=1
+				counter +=1
 		counter_frame +=1
 	print(len(random_walk_desc[0][0][0]))
 	print(len(random_walk_desc[1][0][0]))
@@ -787,9 +798,9 @@ def build_live_graph_synthia(odom_list, start, end):
 			continue
 		else:
 			if(dist<0.2):
-				thresh = 85 
+				thresh = 82
 			else:
-				thresh = 100
+				thresh = 95
 			origin = dest
 			print('frame '+str(i))
 			frames_live_filtered.append(i)
@@ -936,7 +947,7 @@ def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcur
 					#print('dist of centroid' +str(dist))
 					#print('area ratio '+str(area_ratio))
 					if(dist < thresh and area_ratio < area_thresh and area_ratio > 0.8):
-						#print('FUSING')
+						print('condition yes')
 						"""
 						if(sem_categ==0):
 							cv2.drawContours(imgcurrent2, [blob['cnt']], 0, (255,255,255), 6)
@@ -950,18 +961,27 @@ def check_with_previous_and_fuse_live(frame_num, position_num, info_list, imgcur
 							#print('area ratio '+str(area_ratio))
 						#add condition to see if not already fused
 						if(blob_ref['fused']):
+							if(blob_ref['fuseDepth']>6):
+								counter_ref+=1
+								print('prev blob depth>6')
+								continue
 							#print('GLOBAL AND LOCAL')
 						# assign global and local parents
+							print('FUSING to fused parent')
 							fuse_info = blob_ref['fuseInfo']
 							global_graph_live[fuse_info[0]][fuse_info[1]][fuse_info[2]]['parentOf'].append((position_num, sem_categ, counter)) #####  change
 							#can optionally add local child info to local parent also 
 							#
 							blob_ref['localParentOf'].append((position_num, sem_categ, counter))
 							blob['fuseDepth'] = blob_ref['fuseDepth']+1
+							global max_fuse_depth
+							if(blob['fuseDepth']>max_fuse_depth):
+								max_fuse_depth = blob['fuseDepth']
 							blob['fused'] =  True
 							blob['fuseInfo'] = fuse_info
 							blob['localParent'] = [position_num-1, sem_categ, counter_ref]
 						else:
+							print('FUSING')
 							blob_ref['localParentOf'].append((position_num, sem_categ, counter))
 							blob_ref['parentOf'].append((position_num, sem_categ, counter))
 							blob['fused'] =  True
@@ -1085,10 +1105,10 @@ def add_to_global_graph_live(frame_num, position_num, blob_list): #blobs list ac
 	random_walk_desc_live[position_num] = [[[] for blob in semcatblobs] for semcatblobs in blob_list]
 	random_walk_sems_live[position_num] = [[[] for blob in semcatblobs] for semcatblobs in blob_list]
 
-	print(len(blob_list))
+	#print(len(blob_list))
 	print('add to global graph at '+str(position_num))
 	print(len(global_graph_live))
-	print(len(global_graph_live[position_num]))
+	#print(len(global_graph_live[position_num]))
 	#if(position_num==0):
 		#print(global_graph_live[0])
 		#time.sleep(30)
@@ -1097,17 +1117,20 @@ def add_to_global_graph_live(frame_num, position_num, blob_list): #blobs list ac
 
 def call_random_walk_live():
 	counter_frame = 0
-	for frame_list in global_graph_live[0:1]:
+	for frame_list in global_graph_live:
 		for sem_cat in range(len(rgb_mapping)):
 			counter = 0
 			for blob in frame_list[sem_cat]:
 				if((not blob['fused']) and blob['edgeInfo']):
 					print('calling for frame' + str(counter_frame))
 					print('semcat '+str(sem_cat))
+					print('calling for '+str(counter_frame)+'...'+str(sem_cat)+'...'+str(counter))
+					print(blob['edgeInfo'])
 					random_walk_live(walk_length, walk_length, [], counter_frame, sem_cat, counter, False) ##do we need to pass here?
-					#if(len(random_walk_sems_live[counter_frame][sem_cat][counter])==0):
+					if(len(random_walk_sems_live[counter_frame][sem_cat][counter])==0):
+						print('stopping for '+str(counter_frame)+'...'+str(sem_cat)+'...'+str(counter))
 						#time.sleep(20)
-					counter +=1
+				counter +=1
 		counter_frame +=1
 
 	"""
@@ -1147,6 +1170,8 @@ def see_desc_live(ind1,ind2,ind3):
 
 def random_walk_live(walk_left, walk_length, list_not, position_num, sem_categ, blob_num, fused_case = False):
 
+	if(len(list_not)>=4):
+		time.sleep(10)
 	if(fused_case):
 		assert(walk_left!=0)
 	if (walk_left==0):
@@ -1176,14 +1201,14 @@ def random_walk_live(walk_left, walk_length, list_not, position_num, sem_categ, 
 
 	blob = global_graph_live[position_num][sem_categ][blob_num]
 	edge_list = blob['edgeInfo']
-
+	print(edge_list)
 	for edge in edge_list:
 		print('edge')
 		(frame_num, position, sem, blob_pos) = edge
 		if([position, sem, blob_pos] not in list_not):
 			edge_blob = global_graph_live[position][sem][blob_pos]
 			if(edge_blob['fused']):
-				print(edge_blob)
+				#print(edge_blob)
 				print('edge blob is fused')
 				#time.sleep(10)
 				continue
@@ -1241,8 +1266,8 @@ def random_walk_live(walk_left, walk_length, list_not, position_num, sem_categ, 
 		return 
 
 def compute():
-	for i in range(83):
-		for j in range(70):
+	for i in range(len(random_walk_sems_memory)):
+		for j in range(len(random_walk_sems_live)):
 			for k in range(len(rgb_mapping)):
 				for l in range(len(random_walk_sems_memory[i][k])):
 					for g in range(len(random_walk_sems_live[j][k])):
@@ -1265,9 +1290,13 @@ load_odom_data(memory_odom_path,True)
 build_graph_synthia(memory_odom_list)
 
 load_odom_data(live_odom_path, False)
-build_live_graph_synthia(live_odom_list, 60, 150)
+build_live_graph_synthia(live_odom_list, 60, 190)
+
+
 compute()
 print(matches)
 f=sorted(matches, key = lambda x: x[0])
 for fi in f:
 	print(fi)
+
+print(max_fuse_depth)
