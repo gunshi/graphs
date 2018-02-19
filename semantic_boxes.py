@@ -6,7 +6,7 @@ from transformations import euler_from_matrix
 from random import random
 import time
 
-static_dict = [0,3,5,6,7,8,9]
+static_dict = [0,1,3,7,9]
 semantic_dict = [
 	[64, 64, 0],
 	[0, 0, 128], ##no
