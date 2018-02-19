@@ -3,9 +3,58 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 from transformations import euler_from_matrix
-from random import random
+from random import random																		
 import time
 from collections import Counter
+
+
+'''
+Classes:
+------------
+Sky = [128,128,128]
+Building = [128,0,0]
+Pole = [192,192,128]
+Road_marking = [255,69,0]
+Road = [128,64,128]
+Pavement = [60,40,222]
+Tree = [128,128,0]
+SignSymbol = [192,128,128]
+Fence = [64,64,128]
+
+Car = [64,0,128]
+Pedestrian = [64,64,0]
+Bicyclist = [0,128,192]
+Unlabelled = [0,0,0]
+'''
+static_enet=[0,1,2,3,4,5,6,7]
+
+label_to_colours = [
+	#0: 
+	[128,128,128],
+	#1: 
+	[128,0,0],
+	#2: 
+	[192,192,128],
+	#3: 
+	[128,64,128],
+	#4: 
+	[60,40,222],
+	#5: 
+	[128,128,0],
+	#6: 
+	[192,128,128],
+	#7: 
+	[64,64,128],
+
+	#8: 
+	[64,0,128],
+	#9: 
+	[64,64,0],
+	#10: 
+	[0,128,192],
+	#11: 
+	[0,0,0]
+]
 
 
 synthia_memory_folder_rgb = '/home/gunshi/Downloads/synthia/SYNTHIA-SEQS-01-DAWN/RGB/Stereo_Left/Omni_F/'
@@ -77,7 +126,7 @@ synthia_semantic_values = [
 	[156,33,166]	
 ] 
 
-rgb_mapping = static_synthia
+rgb_mapping = static_enet #static_synthia
 
 global_graph =  []
 random_walk_desc = []
