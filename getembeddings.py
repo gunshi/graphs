@@ -2,14 +2,14 @@ import cv2
 import tensorflow as tf
 import tensorflow.contrib.slim.nets as nets
 import numpy as np
-
+import tensorflow.contrib.slim as slim
 import sys
 
 sys.path.insert(0, './caffetensorflow')
-sys.path.append("./models/research/slim")
-
-from datasets import dataset_utils
-from preprocessing import vgg_preprocessing
+# sys.path.append("./models/research/slim")
+#
+# from datasets import dataset_utils
+# from preprocessing import vgg_preprocessing
 
 
 def preprocess(image, model_name, inplace= False):
@@ -58,44 +58,51 @@ def preprocess(image, model_name, inplace= False):
     else:
         return image1
 
-def getembeddings(image, model_name, layer_name):
+def getembeddings(image, model_name, layer_name, model_path):
     # --------------------------------------------------------------------------------------------------------------------------------------
     tf.reset_default_graph()
-
-
-
-
 
     # --------------------------------------------------------------------------------------------------------------------------------------
     model_dicts = {'resnet' : {
                                 'image_size' : 224 ,
-                                'model' : "nets.resnet_v1.resnet_v1_101"
+                                'model' : "nets.resnet_v1.resnet_v1_101" ,
+                                'scope' : "nets.resnet_v1.resnet_arg_scope()",
+                                "num_classes" : 1000
                             },
                 'inception' : {
                                 'image_size' : 299 ,
-                                'model' : "nets.inception.inception_v3"
+                                'model' : "nets.inception.inception_v3",
+                                'scope' : "nets.inception.inception_v3_arg_scope()" ,
+                                "num_classes" : 1001
                             },
 
                 'vgg' : {
                                 'image_size' : 224 ,
-                                'model' : "nets.vgg.vgg_16"
+                                'model' : "nets.vgg.vgg_16",
+                                'scope' : "nets.vgg.vgg_arg_scope()" ,
+                                "num_classes" : 1000
                             }
 
                 }
-    num_classes = 1000
+
 
 
 
 
     # --------------------------------------------------------------------------------------------------------------------------------------
+    flag = 0
     if(model_name is 'places365vgg'):
-        from  mynet import VGGPlaces365 as MyNet
+        # from  mynet import VGGPlaces365 as MyNet
+        from  VGGPlaces365 import VGGPlaces365 as MyNet
+
+
         image_size = 224
         images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
         net = MyNet({'data':images})
         layer_name = 'fc6'
         layer_features = net.layers[layer_name]
     else:
+        flag = 1
         if (type(model_name) is str and model_name in model_dicts):
             model_entry = model_dicts[model_name]
         else:
@@ -105,8 +112,10 @@ def getembeddings(image, model_name, layer_name):
         image_size = model_entry['image_size']
 
         images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
-        last_layer_logits, end_points = net(images, num_classes=num_classes)
-        layer_features = end_points[layer_name]
+
+        with slim.arg_scope(eval(model_entry['scope'])):
+            last_layer_logits, end_points = net(images, num_classes=model_entry['num_classes'])
+            layer_features = end_points[layer_name]
 
 
 
@@ -127,13 +136,17 @@ def getembeddings(image, model_name, layer_name):
     # --------------------------------------------------------------------------------------------------------------------------------------
 
 
+    variables_to_restore = tf.contrib.framework.get_variables_to_restore()
 
-
-
-
-    init = tf.global_variables_initializer()
+    # init = tf.global_variables_initializer()
     with tf.Session() as sess:
-        sess.run(init)
+        if(flag):
+            init_fn = tf.contrib.framework.assign_from_checkpoint_fn(model_path, variables_to_restore)
+            init_fn(sess)
+        else:
+            # init = tf.global_variables_initializer()
+            # sess.run(init)
+            net.load(model_path, sess)
         feed = {images: reshapedimageinput}
         a = sess.run(layer_features, feed_dict=feed)
         # print(a.shape)
