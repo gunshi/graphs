@@ -56,8 +56,15 @@ def preprocess(image, model_name, inplace= False):
 
     elif(model_name is 'places365resnet'):
         print(model_name)
-        return image1
         image1 = (2.0) * ((image1/255)-0.5)
+        return image1
+
+    elif(model_name is 'places365resnetft'):
+        # print(model_name)
+        # image1 = image1[:,:,::-1]
+        image1 = (2.0) * ((image1/255)-0.5)
+        return image1
+
 
 
     else:
@@ -100,16 +107,25 @@ class Embeddings():
             from  VGGPlaces365 import VGGPlaces365 as MyNet
 
             image_size = 224
-            images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
-            self.net = MyNet({'data':images})
-            layer_features = self.net.layers[layer_name]
+            self.images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
+            self.net = MyNet({'data':self.images})
+            self.layer_features = self.net.layers[layer_name]
         elif(model_name is 'places365resnet'):
             from resnet365 import ResNet152hybrid1365 as MyNet
 
             image_size = 224
-            images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
-            self.net = MyNet({'data':images})
-            layer_features = self.net.layers[layer_name]
+            self.images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
+            self.net = MyNet({'data':self.images})
+            self.layer_features = self.net.layers[layer_name]
+
+        elif(model_name is 'places365resnetft'):
+            from resnet365ft import ResNet152places365 as MyNet
+
+            image_size = 224
+            self.images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
+            self.net = MyNet({'data':self.images})
+            self.layer_features = self.net.layers[layer_name]
+
 
         else:
             flag = 1
@@ -121,20 +137,21 @@ class Embeddings():
             self.net = eval(model_entry['model'])
             image_size = model_entry['image_size']
 
-            images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
+            self.images = tf.placeholder(tf.float32, [None, image_size, image_size, 3])
 
             with slim.arg_scope(eval(model_entry['scope'])):
-                last_layer_logits, end_points = self.net(images, num_classes=model_entry['num_classes'])
-                layer_features = end_points[layer_name]
+                last_layer_logits, end_points = self.net(self.images, num_classes=model_entry['num_classes'])
+                self.layer_features = end_points[layer_name]
 
         variables_to_restore = tf.contrib.framework.get_variables_to_restore()
-
+        # print("here")
         self.sess = tf.Session()
 
         if(flag):
             init_fn = tf.contrib.framework.assign_from_checkpoint_fn(model_path, variables_to_restore)
             init_fn(self.sess)
         else:
+            # print("2")
             # init = tf.global_variables_initializer()
             # sess.run(init)
             self.net.load(model_path, self.sess)
@@ -153,7 +170,7 @@ class Embeddings():
                 reshapedimageinput.append(preprocess( cv2.resize(i,(self.image_size, self.image_size), interpolation = cv2.INTER_CUBIC), self.model_name))
             reshapedimageinput = np.asarray(reshapedimageinput)
 
-        feed = {images: reshapedimageinput}
-        a = self.sess.run(layer_features, feed_dict=feed)
+        feed = {self.images: reshapedimageinput}
+        a = self.sess.run(self.layer_features, feed_dict=feed)
         # print(a.shape)
         return a
