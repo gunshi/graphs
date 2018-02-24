@@ -55,14 +55,26 @@ def preprocess(image, model_name, inplace= False):
         return image1
 
     elif(model_name is 'places365resnet'):
-        print(model_name)
-        image1 = (2.0) * ((image1/255)-0.5)
+        # print(model_name)
+        # image1 = (2.0) * ((image1/255)-0.5)
+        # return image1
+        # print(model_name)
+        mean = np.load("ResnetChannelwisemean.npy")
+        image1 = image1 - mean
+        image1[:, :, 0] = image1[:, :,0 ] - mean[0, :, :]
+        image1[:, :, 1] = image1[:, :,1 ] - mean[1, :, :]
+        image1[:, :, 2] = image1[:, :, 2] - mean[2, :, :]
+        # image1 = image1[:,:,::-1]
         return image1
 
     elif(model_name is 'places365resnetft'):
         # print(model_name)
+        mean = np.load("ResnetChannelwisemean.npy")
+        # image1 = image1 - mean
+        image1[:, :, 0] = image1[:, :,0 ] - mean[0, :, :]
+        image1[:, :, 1] = image1[:, :,1 ] - mean[1, :, :]
+        image1[:, :, 2] = image1[:, :, 2] - mean[2, :, :]
         # image1 = image1[:,:,::-1]
-        image1 = (2.0) * ((image1/255)-0.5)
         return image1
 
 
